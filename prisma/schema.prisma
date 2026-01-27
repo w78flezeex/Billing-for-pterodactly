@@ -1,0 +1,569 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USERS ====================
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password        String
+  name            String
+  avatar          String?
+  phone           String?
+  company         String?
+  role            Role      @default(USER)
+  emailVerified   Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime?
+  
+  // Billing info
+  balance         Float     @default(0)
+  
+  // 2FA
+  twoFactorSecret      String?
+  twoFactorEnabled     Boolean   @default(false)
+  twoFactorBackupCodes String[]  @default([])
+  
+  // Email verification & password reset
+  emailVerifyToken       String?
+  emailVerifyExpires     DateTime?
+  resetPasswordToken     String?
+  resetPasswordExpires   DateTime?
+  isEmailVerified        Boolean   @default(false)
+  isDeleted              Boolean   @default(false)
+  
+  // Referral system
+  referralCode      String    @unique @default(cuid())
+  referredById      String?
+  referredBy        User?     @relation("Referrals", fields: [referredById], references: [id])
+  referredUsers     User[]    @relation("Referrals")
+  referralBalance   Float     @default(0)
+  referralEarnings  Float     @default(0)
+  
+  // Notifications
+  notifyEmail       Boolean   @default(true)
+  notifyTelegram    Boolean   @default(false)
+  telegramChatId    String?
+  discordWebhook    String?
+  
+  // Relations
+  sessions          Session[]
+  orders            Order[]
+  servers           Server[]
+  invoices          Invoice[]
+  tickets           Ticket[]
+  transactions      Transaction[]
+  promocodeUsages   PromocodeUsage[]
+  loginHistory      LoginHistory[]
+  notifications     Notification[]
+  
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+// ==================== SESSIONS ====================
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// ==================== LOGIN HISTORY ====================
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  ipAddress String
+  userAgent String?
+  country   String?
+  city      String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("login_history")
+}
+
+// ==================== TRANSACTIONS ====================
+model Transaction {
+  id            String          @id @default(cuid())
+  userId        String
+  type          TransactionType
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  description   String?
+  paymentMethod String?
+  paymentId     String?
+  status        PaymentStatus   @default(PENDING)
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("transactions")
+}
+
+enum TransactionType {
+  DEPOSIT       // Пополнение
+  WITHDRAWAL    // Вывод
+  PURCHASE      // Покупка
+  REFUND        // Возврат
+  REFERRAL      // Реферальный бонус
+  PROMOCODE     // Промокод
+  BONUS         // Бонус от админа
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ==================== PROMOCODES ====================
+model Promocode {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  type          PromocodeType
+  value         Float           // Сумма или процент
+  minAmount     Float?          // Минимальная сумма заказа
+  maxUses       Int?            // Максимум использований
+  usedCount     Int             @default(0)
+  maxUsesPerUser Int            @default(1)
+  validFrom     DateTime        @default(now())
+  validUntil    DateTime?
+  isActive      Boolean         @default(true)
+  planTypes     PlanType[]      // К каким типам планов применим
+  createdAt     DateTime        @default(now())
+  
+  usages PromocodeUsage[]
+  
+  @@map("promocodes")
+}
+
+enum PromocodeType {
+  FIXED       // Фиксированная сумма
+  PERCENT     // Процент скидки
+  BALANCE     // Бонус на баланс
+}
+
+model PromocodeUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  promocodeId String
+  orderId     String?
+  amount      Float    // Сколько сэкономил/получил
+  createdAt   DateTime @default(now())
+  
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promocode Promocode @relation(fields: [promocodeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, promocodeId])
+  @@map("promocode_usages")
+}
+
+// ==================== LOCATIONS ====================
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  country     String
+  city        String
+  flag        String   // Эмодзи флага
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  
+  // Pterodactyl
+  pterodactylLocationId Int?
+  
+  servers Server[]
+  plans   PlanLocation[]
+  
+  @@map("locations")
+}
+
+model PlanLocation {
+  planId     String
+  locationId String
+  stock      Int      @default(-1) // -1 = unlimited
+  
+  plan     Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  @@id([planId, locationId])
+  @@map("plan_locations")
+}
+
+// ==================== PLANS ====================
+model Plan {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        PlanType
+  price       Float
+  priceYearly Float?   // Цена за год (со скидкой)
+  period      Period   @default(MONTHLY)
+  features    Json     // Array of features
+  specs       Json     // RAM, CPU, Storage, etc.
+  isActive    Boolean  @default(true)
+  isPopular   Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Pterodactyl
+  pterodactylNestId Int?
+  pterodactylEggId  Int?
+  
+  servers   Server[]
+  orders    Order[]
+  locations PlanLocation[]
+  
+  @@map("plans")
+}
+
+enum PlanType {
+  GAME_HOSTING
+  VPS
+  WEB_HOSTING
+  DEDICATED
+}
+
+enum Period {
+  MONTHLY
+  YEARLY
+}
+
+// ==================== SERVERS ====================
+model Server {
+  id          String       @id @default(cuid())
+  userId      String
+  planId      String
+  locationId  String?
+  name        String
+  status      ServerStatus @default(PENDING)
+  ipAddress   String?
+  port        Int?
+  expiresAt   DateTime
+  autoRenew   Boolean      @default(true)
+  suspendedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Pterodactyl
+  pterodactylServerId   Int?
+  pterodactylIdentifier String?
+  pterodactylUuid       String?
+  
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id])
+  location Location? @relation(fields: [locationId], references: [id])
+  backups  Backup[]
+  
+  @@map("servers")
+}
+
+enum ServerStatus {
+  PENDING
+  INSTALLING
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  TERMINATED
+}
+
+// ==================== BACKUPS ====================
+model Backup {
+  id        String       @id @default(cuid())
+  serverId  String
+  name      String
+  size      BigInt       @default(0)
+  status    BackupStatus @default(PENDING)
+  completedAt DateTime?
+  createdAt DateTime     @default(now())
+  
+  // Pterodactyl
+  pterodactylBackupUuid String?
+  
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  
+  @@map("backups")
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  DELETED
+}
+
+// ==================== ORDERS ====================
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  planId        String
+  amount        Float
+  discount      Float       @default(0)
+  promocodeId   String?
+  status        OrderStatus @default(PENDING)
+  paymentMethod String?
+  paymentId     String?
+  period        Period      @default(MONTHLY)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+  
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+// ==================== INVOICES ====================
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        @unique // INV-2026-0001
+  userId      String
+  amount      Float
+  tax         Float         @default(0)
+  status      InvoiceStatus @default(UNPAID)
+  description String?
+  items       Json          // Массив позиций
+  dueDate     DateTime
+  paidAt      DateTime?
+  pdfUrl      String?
+  createdAt   DateTime      @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ==================== TICKETS ====================
+model Ticket {
+  id         String       @id @default(cuid())
+  userId     String
+  subject    String
+  status     TicketStatus @default(OPEN)
+  priority   Priority     @default(NORMAL)
+  category   String?
+  serverId   String?      // Привязка к серверу
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  closedAt   DateTime?
+  
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+  
+  @@map("tickets")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model TicketMessage {
+  id          String   @id @default(cuid())
+  ticketId    String
+  userId      String?  // null = система
+  content     String
+  isStaff     Boolean  @default(false)
+  attachments Json?    // URLs файлов
+  createdAt   DateTime @default(now())
+  
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  @@map("ticket_messages")
+}
+
+// ==================== NOTIFICATIONS ====================
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  PAYMENT
+  SERVER
+  TICKET
+  PROMO
+}
+
+// ==================== FAQ / KNOWLEDGE BASE ====================
+model FaqCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  
+  articles FaqArticle[]
+  
+  @@map("faq_categories")
+}
+
+model FaqArticle {
+  id         String   @id @default(cuid())
+  categoryId String
+  title      String
+  slug       String   @unique
+  content    String   // Markdown
+  views      Int      @default(0)
+  isPublished Boolean @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  category FaqCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@map("faq_articles")
+}
+
+// ==================== SERVER STATUS / INCIDENTS ====================
+model ServerNode {
+  id          String     @id @default(cuid())
+  name        String
+  locationId  String?
+  status      NodeStatus @default(ONLINE)
+  lastCheckAt DateTime   @default(now())
+  uptime      Float      @default(100)
+  
+  incidents Incident[]
+  
+  @@map("server_nodes")
+}
+
+enum NodeStatus {
+  ONLINE
+  DEGRADED
+  MAINTENANCE
+  OFFLINE
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  nodeId      String?
+  title       String
+  description String
+  status      IncidentStatus @default(INVESTIGATING)
+  severity    Severity       @default(MINOR)
+  startedAt   DateTime       @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  node    ServerNode?      @relation(fields: [nodeId], references: [id])
+  updates IncidentUpdate[]
+  
+  @@map("incidents")
+}
+
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+}
+
+enum Severity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+model IncidentUpdate {
+  id         String   @id @default(cuid())
+  incidentId String
+  message    String
+  createdAt  DateTime @default(now())
+  
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  
+  @@map("incident_updates")
+}
+
+// ==================== ADMIN LOGS ====================
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  target    String?  // user:123, server:456
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  
+  @@map("admin_logs")
+}
+
+// ==================== SETTINGS ====================
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  
+  @@map("settings")
+}
