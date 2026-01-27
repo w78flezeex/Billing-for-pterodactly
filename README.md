@@ -102,7 +102,7 @@
 ### 1️⃣ Клонирование репозитория
 
 ```bash
-git clone https://github.com/prd-yt/hosting-panel.git
+git clone https://github.com/w78flezeex/Billing-for-pterodactly
 cd hosting-panel
 ```
 
@@ -393,3 +393,4 @@ SOFTWARE.
 <p align="center">
   <a href="#-hostingpanel">⬆️ Наверх</a>
 </p>
+
