@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -21,7 +21,7 @@ import {
   ArrowLeft,
 } from "lucide-react"
 
-export default function TestPaymentPage() {
+function TestPaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const transactionId = searchParams.get("transactionId")
@@ -416,5 +416,17 @@ export default function TestPaymentPage() {
         )}
       </motion.div>
     </div>
+  )
+}
+
+export default function TestPaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      </div>
+    }>
+      <TestPaymentContent />
+    </Suspense>
   )
 }

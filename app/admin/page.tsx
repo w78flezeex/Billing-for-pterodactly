@@ -68,6 +68,17 @@ import {
   MapPin,
   Package,
   Tag,
+  BarChart3,
+  Percent,
+  BookOpen,
+  Mail,
+  Bell,
+  Shield,
+  Globe,
+  Palette,
+  Database,
+  ChevronDown,
+  ExternalLink,
   CheckCircle,
   XCircle,
 } from "lucide-react"
@@ -254,7 +265,12 @@ export default function AdminPage() {
 
   const checkAdminAccess = async () => {
     try {
-      const res = await fetch("/api/auth/me")
+      // In development, ensure we use HTTP not HTTPS
+      const baseUrl = typeof window !== 'undefined' && window.location.protocol === 'https:' && window.location.hostname === 'localhost'
+        ? `http://${window.location.host}`
+        : ''
+      
+      const res = await fetch(`${baseUrl}/api/auth/me`)
       if (!res.ok) {
         router.push("/login")
         return
@@ -269,6 +285,11 @@ export default function AdminPage() {
       fetchStats()
     } catch (error) {
       console.error("Admin check error:", error)
+      // If SSL error, try to redirect to HTTP version
+      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && window.location.hostname === 'localhost') {
+        window.location.href = window.location.href.replace('https:', 'http:')
+        return
+      }
       router.push("/login")
     }
   }
@@ -474,15 +495,18 @@ export default function AdminPage() {
     <div className="min-h-screen bg-background pt-20">
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-64 min-h-screen border-r bg-card p-4 hidden lg:block">
-          <nav className="space-y-2">
+        <aside className="w-64 min-h-screen border-r bg-card p-4 hidden lg:block sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto">
+          <nav className="space-y-1">
+            {/* Основные */}
+            <div className="px-3 py-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Основные</p>
+            </div>
             {[
               { id: "dashboard", label: "Дашборд", icon: LayoutDashboard },
               { id: "users", label: "Пользователи", icon: Users },
               { id: "servers", label: "Серверы", icon: Server },
               { id: "tickets", label: "Тикеты", icon: MessageSquare },
               { id: "billing", label: "Финансы", icon: CreditCard },
-              { id: "settings", label: "Настройки", icon: Settings },
             ].map((item) => (
               <Button
                 key={item.id}
@@ -494,6 +518,170 @@ export default function AdminPage() {
                 {item.label}
               </Button>
             ))}
+
+            {/* Управление */}
+            <div className="px-3 py-2 mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Управление</p>
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/plans")}
+            >
+              <Package className="mr-2 h-4 w-4" />
+              Тарифы
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/promocodes")}
+            >
+              <Percent className="mr-2 h-4 w-4" />
+              Промокоды
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant={activeTab === "settings" ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActiveTab("settings")}
+            >
+              <MapPin className="mr-2 h-4 w-4" />
+              Локации
+            </Button>
+
+            {/* Аналитика */}
+            <div className="px-3 py-2 mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Аналитика</p>
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/reports")}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Финансовые отчёты
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/analytics/dashboard")}
+            >
+              <Activity className="mr-2 h-4 w-4" />
+              Статистика
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/payments")}
+            >
+              <DollarSign className="mr-2 h-4 w-4" />
+              Платежи
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+
+            {/* Биллинг */}
+            <div className="px-3 py-2 mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Биллинг</p>
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/refunds")}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Возвраты
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/withdrawals")}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Заявки на вывод
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/gift-certificates")}
+            >
+              <Gift className="mr-2 h-4 w-4" />
+              Сертификаты
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/mass-bonus")}
+            >
+              <Tag className="mr-2 h-4 w-4" />
+              Массовые бонусы
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/fraud")}
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Детектор фрода
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+
+            {/* Контент */}
+            <div className="px-3 py-2 mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Контент</p>
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/knowledge")}
+            >
+              <BookOpen className="mr-2 h-4 w-4" />
+              База знаний
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+
+            {/* Интеграции */}
+            <div className="px-3 py-2 mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Интеграции</p>
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/pterodactyl")}
+            >
+              <Database className="mr-2 h-4 w-4" />
+              Pterodactyl
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/settings/payments")}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Платёжные системы
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
+
+            {/* Настройки */}
+            <div className="px-3 py-2 mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Настройки</p>
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => router.push("/admin/settings")}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Настройки сайта
+              <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+            </Button>
           </nav>
         </aside>
 

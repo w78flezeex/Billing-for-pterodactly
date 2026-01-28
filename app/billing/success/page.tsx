@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle, Loader2, ArrowRight } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refreshUser } = useAuth()
@@ -95,5 +95,17 @@ export default function PaymentSuccessPage() {
         </Card>
       </motion.div>
     </div>
+  )
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   )
 }
