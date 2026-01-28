@@ -93,7 +93,7 @@ export function middleware(request: NextRequest) {
   
   // ==================== ЗАЩИТА ЛИЧНОГО КАБИНЕТА ====================
   
-  const protectedPaths = ['/dashboard', '/servers', '/billing', '/tickets', '/settings', '/balance']
+  const protectedPaths = ['/dashboard', '/servers', '/billing', '/tickets', '/settings', '/balance', '/withdraw', '/referral', '/profile', '/order']
   const isProtectedPath = protectedPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   )
