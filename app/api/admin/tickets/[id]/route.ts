@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db"
 
-// Проверка админ-прав
-async function checkAdmin() {
+// Проверка прав на работу с тикетами (админ, саппорт, модератор)
+async function checkStaffAccess() {
   const user = await getCurrentUser()
   if (!user) {
     return { error: "Не авторизован", status: 401 }
@@ -14,20 +14,21 @@ async function checkAdmin() {
     select: { role: true, id: true, name: true },
   })
   
-  if (dbUser?.role !== "ADMIN") {
+  const staffRoles = ["ADMIN", "SUPPORT", "MODERATOR"]
+  if (!dbUser || !staffRoles.includes(dbUser.role)) {
     return { error: "Нет доступа", status: 403 }
   }
   
   return { user: dbUser }
 }
 
-// GET - Получить тикет с сообщениями (для админа)
+// GET - Получить тикет с сообщениями (для персонала)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const check = await checkAdmin()
+    const check = await checkStaffAccess()
     if ("error" in check) {
       return NextResponse.json({ error: check.error }, { status: check.status })
     }
@@ -60,13 +61,13 @@ export async function GET(
   }
 }
 
-// POST - Ответить на тикет (от имени админа)
+// POST - Ответить на тикет (от имени персонала)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const check = await checkAdmin()
+    const check = await checkStaffAccess()
     if ("error" in check) {
       return NextResponse.json({ error: check.error }, { status: check.status })
     }
@@ -87,12 +88,13 @@ export async function POST(
       return NextResponse.json({ error: "Тикет не найден" }, { status: 404 })
     }
 
-    // Добавляем сообщение от админа
+    // Добавляем сообщение от персонала
     const newMessage = await prisma.ticketMessage.create({
       data: {
         ticketId: id,
         content: message,
         isStaff: true,
+        staffName: check.user.name || "Поддержка",
       },
     })
 
@@ -100,7 +102,7 @@ export async function POST(
     await prisma.ticket.update({
       where: { id },
       data: {
-        status: "IN_PROGRESS",
+        status: "ANSWERED",
         updatedAt: new Date(),
       },
     })
@@ -135,7 +137,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const check = await checkAdmin()
+    const check = await checkStaffAccess()
     if ("error" in check) {
       return NextResponse.json({ error: check.error }, { status: check.status })
     }

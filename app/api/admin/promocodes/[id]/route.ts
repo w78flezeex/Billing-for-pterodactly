@@ -85,17 +85,35 @@ export async function PATCH(
       return NextResponse.json({ error: "Промокод не найден" }, { status: 404 })
     }
 
-    const allowedFields = ["isActive", "maxUses", "maxUsesPerUser", "expiresAt", "minAmount", "applicablePlanIds"]
     const updateData: any = {}
 
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        if (field === "expiresAt" && body[field]) {
-          updateData[field] = new Date(body[field])
-        } else {
-          updateData[field] = body[field]
-        }
+    // Code field (check uniqueness if changed)
+    if (body.code !== undefined && body.code !== promocode.code) {
+      const existing = await prisma.promocode.findUnique({
+        where: { code: body.code.toUpperCase() },
+      })
+      if (existing && existing.id !== id) {
+        return NextResponse.json(
+          { error: "Промокод с таким кодом уже существует" },
+          { status: 400 }
+        )
       }
+      updateData.code = body.code.toUpperCase()
+    }
+
+    // Type and value
+    if (body.type !== undefined) updateData.type = body.type
+    if (body.value !== undefined) updateData.value = body.value
+
+    // Other fields
+    if (body.isActive !== undefined) updateData.isActive = body.isActive
+    if (body.maxUses !== undefined) updateData.maxUses = body.maxUses
+    if (body.maxUsesPerUser !== undefined) updateData.maxUsesPerUser = body.maxUsesPerUser
+    if (body.minAmount !== undefined) updateData.minAmount = body.minAmount
+    if (body.applicablePlanIds !== undefined) updateData.planTypes = body.applicablePlanIds
+    
+    if (body.expiresAt !== undefined) {
+      updateData.validUntil = body.expiresAt ? new Date(body.expiresAt) : null
     }
 
     const updated = await prisma.promocode.update({

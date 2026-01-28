@@ -9,6 +9,7 @@ import {
   hashBackupCode,
   verifyBackupCode,
 } from "@/lib/totp"
+import QRCode from "qrcode"
 
 // GET - Получить статус 2FA
 export async function GET() {
@@ -61,6 +62,9 @@ export async function POST(request: NextRequest) {
     // Генерируем секрет
     const secret = generateSecret()
     const otpAuthUrl = generateOTPAuthURL(secret, user.email)
+    
+    // Генерируем QR-код как data URL
+    const qrCode = await QRCode.toDataURL(otpAuthUrl)
 
     // Сохраняем секрет временно (не включаем 2FA пока)
     await prisma.user.update({
@@ -72,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       secret,
-      otpAuthUrl,
+      qrCode,
       message: "Отсканируйте QR код и введите код подтверждения",
     })
   } catch (error) {

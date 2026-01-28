@@ -29,7 +29,6 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 interface Transaction {
   id: string
@@ -48,6 +47,7 @@ export default function BalancePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [amount, setAmount] = useState("")
   const [promocode, setPromocode] = useState("")
+  const [giftCode, setGiftCode] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -162,6 +162,47 @@ export default function BalancePage() {
     }
   }
 
+  const handleActivateGift = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsProcessing(true)
+    setError("")
+    setMessage("")
+
+    if (!giftCode.trim()) {
+      setError("Введите код сертификата")
+      setIsProcessing(false)
+      return
+    }
+
+    try {
+      const res = await fetch("/api/billing/gift-certificate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: giftCode }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setMessage(`Сертификат активирован! Начислено: ${data.amount} ₽`)
+        setGiftCode("")
+        await refreshUser()
+        // Обновляем транзакции
+        const txRes = await fetch("/api/billing/transactions")
+        if (txRes.ok) {
+          const txData = await txRes.json()
+          setTransactions(txData.transactions || [])
+        }
+      } else {
+        setError(data.error || "Ошибка при активации сертификата")
+      }
+    } catch {
+      setError("Ошибка подключения к серверу")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case "DEPOSIT":
@@ -213,22 +254,16 @@ export default function BalancePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/profile">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <h1 className="text-xl font-bold">Баланс и платежи</h1>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
+        {/* Page Title */}
+        <div className="flex items-center gap-4 mb-6">
+          <Link href="/profile">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Баланс и платежи</h1>
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -243,7 +278,13 @@ export default function BalancePage() {
                   <p className="text-sm text-muted-foreground mb-1">Текущий баланс</p>
                   <p className="text-4xl font-bold">{user?.balance.toFixed(2) || "0.00"} ₽</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Link href="/withdraw">
+                    <Button variant="outline">
+                      <ArrowDownLeft className="h-4 w-4 mr-2" />
+                      Вывести
+                    </Button>
+                  </Link>
                   <Link href="/referral">
                     <Button variant="outline">
                       <Gift className="h-4 w-4 mr-2" />
@@ -343,6 +384,30 @@ export default function BalancePage() {
                       <Gift className="h-4 w-4 mr-2" />
                     )}
                     Активировать
+                  </Button>
+                </form>
+
+                <Separator className="my-4" />
+
+                {/* Gift Certificate */}
+                <form onSubmit={handleActivateGift} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="giftcode">Подарочный сертификат</Label>
+                    <Input
+                      id="giftcode"
+                      placeholder="GIFT-XXXX-XXXX-XXXX-XXXX"
+                      value={giftCode}
+                      onChange={(e) => setGiftCode(e.target.value.toUpperCase())}
+                    />
+                  </div>
+
+                  <Button type="submit" variant="outline" className="w-full" disabled={isProcessing}>
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Активировать сертификат
                   </Button>
                 </form>
 
