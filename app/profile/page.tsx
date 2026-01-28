@@ -38,7 +38,6 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Header } from "@/components/header"
 
 interface ProfileServer {
   id: string
@@ -247,9 +246,6 @@ export default function ProfilePage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Header */}
-      <Header />
-
       {/* Main Content */}
       <main className="container py-8 relative z-10">
         <motion.div
@@ -263,8 +259,12 @@ export default function ProfilePage() {
               <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
                 {/* Avatar */}
                 <div className="relative">
-                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-10 w-10 text-primary" />
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-10 w-10 text-primary" />
+                    )}
                   </div>
                   {user?.role === "ADMIN" && (
                     <Badge className="absolute -bottom-1 -right-1 bg-amber-500">

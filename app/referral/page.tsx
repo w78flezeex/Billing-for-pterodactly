@@ -22,7 +22,6 @@ import {
   Calendar,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 interface Referral {
   id: string
@@ -133,22 +132,16 @@ export default function ReferralPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/profile">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <h1 className="text-xl font-bold">Реферальная программа</h1>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
+        {/* Page Title */}
+        <div className="flex items-center gap-4 mb-6">
+          <Link href="/profile">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Реферальная программа</h1>
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

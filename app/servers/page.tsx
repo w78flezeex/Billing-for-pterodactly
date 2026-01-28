@@ -34,7 +34,6 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -191,30 +190,24 @@ export default function ServersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <main className="container mx-auto px-4 py-8">
+        {/* Page Title */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Link href="/profile">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <h1 className="text-xl font-bold">Мои серверы</h1>
+            <h1 className="text-2xl font-bold">Мои серверы</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/order">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Заказать сервер
-              </Button>
-            </Link>
-            <ThemeToggle />
-          </div>
+          <Link href="/order">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Заказать сервер
+            </Button>
+          </Link>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
