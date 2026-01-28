@@ -4,9 +4,10 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, Server, Globe, User, LogOut, Ticket, ShoppingCart, HelpCircle, Settings, Wallet, Users, Activity, HardDrive } from "lucide-react"
+import { Menu, Server, Globe, User, LogOut, Ticket, ShoppingCart, HelpCircle, Settings, Wallet, Users, Activity, HardDrive, ArrowDownLeft, Gauge, Gift, Webhook } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { NotificationBell } from "@/components/notification-bell"
 import { useLanguage } from "@/hooks/use-language"
 import { useAuth } from "@/hooks/use-auth"
 import { siteConfig } from "@/lib/config"
@@ -98,6 +99,21 @@ export function Header() {
           </DropdownMenu>
 
           <ThemeToggle />
+          
+          {/* Уведомления */}
+          {isAuthenticated && <NotificationBell />}
+
+          {/* Баланс */}
+          {isAuthenticated && (
+            <Link href="/balance" className="hidden md:flex">
+              <Button variant="ghost" size="sm" className="gap-2 font-medium">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary/10 text-primary">
+                  <Wallet className="h-4 w-4" />
+                  <span className="font-semibold">{(user?.balance || 0).toLocaleString('ru-RU')} ₽</span>
+                </div>
+              </Button>
+            </Link>
+          )}
 
           {/* Auth Button - Desktop */}
           {!authLoading && (
@@ -105,7 +121,11 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="hidden md:inline-flex gap-2">
-                    <User className="h-4 w-4" />
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt="" className="h-5 w-5 rounded-full object-cover" />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
                     {user?.name || "Профиль"}
                   </Button>
                 </DropdownMenuTrigger>
@@ -132,6 +152,12 @@ export function Header() {
                     <Link href="/balance" className="flex items-center gap-2 cursor-pointer">
                       <Wallet className="h-4 w-4" />
                       Баланс
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/withdraw" className="flex items-center gap-2 cursor-pointer">
+                      <ArrowDownLeft className="h-4 w-4" />
+                      Вывод средств
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -163,6 +189,24 @@ export function Header() {
                     <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
                       <Settings className="h-4 w-4" />
                       Настройки
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/spending-limits" className="flex items-center gap-2 cursor-pointer">
+                      <Gauge className="h-4 w-4" />
+                      Лимиты расходов
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/gifts" className="flex items-center gap-2 cursor-pointer">
+                      <Gift className="h-4 w-4" />
+                      Подарки
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/webhooks" className="flex items-center gap-2 cursor-pointer">
+                      <Webhook className="h-4 w-4" />
+                      Webhooks
                     </Link>
                   </DropdownMenuItem>
                   {user?.role === "ADMIN" && (
@@ -228,9 +272,20 @@ export function Header() {
                 {!authLoading && (
                   isAuthenticated ? (
                     <div className="space-y-2 mt-4">
+                      {/* Баланс - мобильная версия */}
+                      <Link href="/balance" onClick={() => setIsOpen(false)}>
+                        <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-primary/10 text-primary mb-4">
+                          <Wallet className="h-5 w-5" />
+                          <span className="text-lg font-bold">{(user?.balance || 0).toLocaleString('ru-RU')} ₽</span>
+                        </div>
+                      </Link>
                       <Link href="/profile" onClick={() => setIsOpen(false)}>
                         <Button className="w-full" variant="outline">
-                          <User className="h-4 w-4 mr-2" />
+                          {user?.avatar ? (
+                            <img src={user.avatar} alt="" className="h-5 w-5 rounded-full object-cover mr-2" />
+                          ) : (
+                            <User className="h-4 w-4 mr-2" />
+                          )}
                           Личный кабинет
                         </Button>
                       </Link>

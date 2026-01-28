@@ -33,9 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Get base URL for fetch - handle HTTPS localhost issue in dev
+  const getBaseUrl = () => {
+    if (typeof window === 'undefined') return ''
+    if (window.location.hostname === 'localhost' && window.location.protocol === 'https:') {
+      return `http://${window.location.host}`
+    }
+    return ''
+  }
+
   const refreshUser = async () => {
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(`${getBaseUrl()}/api/auth/me`, {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",

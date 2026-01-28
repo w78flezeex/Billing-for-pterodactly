@@ -20,10 +20,10 @@ export async function depositBalance(params: CreateTransactionParams) {
   const { userId, amount, description, paymentMethod, paymentId, metadata } = params
 
   return prisma.$transaction(async (tx) => {
-    // Получаем текущий баланс
+    // Получаем текущий баланс и роль
     const user = await tx.user.findUnique({
       where: { id: userId },
-      select: { balance: true },
+      select: { balance: true, role: true },
     })
 
     if (!user) throw new Error("Пользователь не найден")
@@ -47,10 +47,17 @@ export async function depositBalance(params: CreateTransactionParams) {
       },
     })
 
-    // Обновляем баланс пользователя
+    // Обновляем баланс пользователя и повышаем роль до CLIENT если он USER
+    const updateData: { balance: number; role?: "CLIENT" } = { balance: balanceAfter }
+    
+    // Автоматически выдаём роль CLIENT при первом пополнении
+    if (user.role === "USER") {
+      updateData.role = "CLIENT"
+    }
+    
     await tx.user.update({
       where: { id: userId },
-      data: { balance: balanceAfter },
+      data: updateData,
     })
 
     return transaction

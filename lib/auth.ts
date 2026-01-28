@@ -102,3 +102,17 @@ export async function deleteSession(token: string) {
     where: { token },
   })
 }
+
+// Проверка прав администратора - возвращает пользователя или null
+export async function requireAdmin() {
+  const user = await getCurrentUser()
+  if (!user || user.role !== "ADMIN") {
+    return null
+  }
+  return user
+}
+
+// Проверка авторизации - возвращает пользователя или null
+export async function requireAuth() {
+  return await getCurrentUser()
+}
