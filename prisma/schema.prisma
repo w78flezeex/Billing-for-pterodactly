@@ -67,13 +67,22 @@ model User {
   loginHistory      LoginHistory[]
   notifications     Notification[]
   
+  // New billing relations
+  purchasedCertificates GiftCertificate[] @relation("PurchasedCertificates")
+  redeemedCertificates  GiftCertificate[] @relation("RedeemedCertificates")
+  withdrawalRequests    WithdrawalRequest[]
+  spendingLimit         SpendingLimit?
+  fraudAlerts           FraudAlert[]
+  
   @@map("users")
 }
 
 enum Role {
   USER
-  ADMIN
+  CLIENT
+  SUPPORT
   MODERATOR
+  ADMIN
 }
 
 // ==================== SESSIONS ====================
@@ -417,6 +426,7 @@ model TicketMessage {
   userId      String?  // null = система
   content     String
   isStaff     Boolean  @default(false)
+  staffName   String?  // Имя сотрудника поддержки
   attachments Json?    // URLs файлов
   createdAt   DateTime @default(now())
   
@@ -566,4 +576,325 @@ model Setting {
   updatedAt DateTime @updatedAt
   
   @@map("settings")
+}
+
+// ==================== GIFT CERTIFICATES ====================
+model GiftCertificate {
+  id            String              @id @default(cuid())
+  code          String              @unique
+  amount        Float               // Номинал
+  balance       Float               // Остаток (можно частично использовать)
+  purchasedById String?             // Кто купил
+  purchasedBy   User?               @relation("PurchasedCertificates", fields: [purchasedById], references: [id])
+  redeemedById  String?             // Кто активировал
+  redeemedBy    User?               @relation("RedeemedCertificates", fields: [redeemedById], references: [id])
+  redeemedAt    DateTime?
+  expiresAt     DateTime?
+  isActive      Boolean             @default(true)
+  message       String?             // Сообщение получателю
+  recipientEmail String?            // Email получателя для отправки
+  createdAt     DateTime            @default(now())
+  
+  @@map("gift_certificates")
+}
+
+// ==================== WITHDRAWAL REQUESTS ====================
+model WithdrawalRequest {
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Float
+  method        WithdrawalMethod
+  details       Json                // Реквизиты (карта, кошелёк и т.д.)
+  status        WithdrawalStatus    @default(PENDING)
+  adminNote     String?
+  processedById String?
+  processedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  
+  @@map("withdrawal_requests")
+}
+
+enum WithdrawalMethod {
+  CARD          // Банковская карта
+  YOOMONEY      // ЮMoney
+  QIWI          // QIWI
+  CRYPTO        // Криптовалюта
+}
+
+enum WithdrawalStatus {
+  PENDING       // Ожидает
+  PROCESSING    // В обработке
+  COMPLETED     // Выполнено
+  REJECTED      // Отклонено
+}
+
+// ==================== SPENDING LIMITS ====================
+model SpendingLimit {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthlyLimit  Float?    // Месячный лимит
+  dailyLimit    Float?    // Дневной лимит
+  isEnabled     Boolean   @default(true)
+  alertAt       Float?    // Уведомить при достижении % от лимита
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("spending_limits")
+}
+
+// ==================== FRAUD DETECTION ====================
+model FraudAlert {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          FraudType
+  severity      FraudSeverity
+  description   String
+  metadata      Json?         // Дополнительные данные
+  status        FraudStatus   @default(PENDING)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime      @default(now())
+  
+  @@map("fraud_alerts")
+}
+
+enum FraudType {
+  MULTIPLE_ACCOUNTS     // Множественные аккаунты
+  SUSPICIOUS_PAYMENT    // Подозрительный платёж
+  UNUSUAL_ACTIVITY      // Необычная активность
+  CHARGEBACK            // Чарджбэк
+  IP_MISMATCH           // Несоответствие IP
+  VELOCITY              // Слишком много транзакций
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FraudStatus {
+  PENDING       // Ожидает проверки
+  INVESTIGATING // В расследовании
+  CONFIRMED     // Подтверждено
+  FALSE_POSITIVE // Ложное срабатывание
+  RESOLVED      // Решено
+}
+
+// ==================== BALANCE GIFTS ====================
+model BalanceGift {
+  id            String      @id @default(cuid())
+  senderId      String
+  recipientId   String?     // null если по email/username
+  recipientEmail String?
+  amount        Float
+  message       String?
+  status        GiftStatus  @default(PENDING)
+  claimedAt     DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  
+  @@map("balance_gifts")
+}
+
+enum GiftStatus {
+  PENDING       // Ожидает получения
+  CLAIMED       // Получен
+  EXPIRED       // Истёк
+  CANCELLED     // Отменён
+}
+
+// ==================== VOLUME DISCOUNTS ====================
+model VolumeDiscount {
+  id            String   @id @default(cuid())
+  name          String
+  minAmount     Float    // Минимальная сумма пополнений
+  discountPercent Float  // Процент скидки
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  
+  @@map("volume_discounts")
+}
+
+model UserDiscount {
+  id            String   @id @default(cuid())
+  userId        String
+  discountPercent Float  // Персональная скидка
+  totalSpent    Float    @default(0) // Общая сумма потраченных денег
+  discountTier  String?  // Уровень скидки (Bronze, Silver, Gold, Platinum)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([userId])
+  @@map("user_discounts")
+}
+
+// ==================== AUTO RENEWAL ====================
+model AutoRenewal {
+  id            String   @id @default(cuid())
+  userId        String
+  serverId      String
+  isEnabled     Boolean  @default(true)
+  daysBeforeExpiry Int   @default(3) // За сколько дней до истечения продлевать
+  renewalPeriod Int      @default(30) // На сколько дней продлевать
+  lastRenewalAt DateTime?
+  nextRenewalAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([userId, serverId])
+  @@map("auto_renewals")
+}
+
+// ==================== WEBHOOKS ====================
+model Webhook {
+  id            String        @id @default(cuid())
+  userId        String
+  name          String
+  url           String
+  secret        String?       // HMAC секрет для подписи
+  events        WebhookEvent[]
+  isActive      Boolean       @default(true)
+  lastTriggeredAt DateTime?
+  failCount     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  logs WebhookLog[]
+  
+  @@map("webhooks")
+}
+
+model WebhookLog {
+  id            String   @id @default(cuid())
+  webhookId     String
+  event         WebhookEvent
+  payload       Json
+  responseCode  Int?
+  responseBody  String?
+  success       Boolean
+  executedAt    DateTime @default(now())
+  
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  
+  @@map("webhook_logs")
+}
+
+enum WebhookEvent {
+  SERVER_CREATED
+  SERVER_DELETED
+  SERVER_EXPIRED
+  SERVER_RENEWED
+  PAYMENT_COMPLETED
+  PAYMENT_FAILED
+  BALANCE_LOW
+  TICKET_CREATED
+  TICKET_REPLIED
+}
+
+// ==================== EMAIL CAMPAIGNS ====================
+model EmailCampaign {
+  id            String         @id @default(cuid())
+  name          String
+  subject       String
+  content       String         @db.Text
+  targetType    EmailTarget
+  targetFilter  Json?          // Фильтры для выбора получателей
+  sentCount     Int            @default(0)
+  openCount     Int            @default(0)
+  clickCount    Int            @default(0)
+  status        CampaignStatus @default(DRAFT)
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  createdById   String
+  createdAt     DateTime       @default(now())
+  
+  @@map("email_campaigns")
+}
+
+enum EmailTarget {
+  ALL_USERS
+  ACTIVE_USERS
+  INACTIVE_USERS
+  WITH_SERVERS
+  WITHOUT_SERVERS
+  CUSTOM
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+// ==================== AUDIT LOG ====================
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  userEmail     String?
+  action        String
+  entityType    String?  // User, Server, Payment, etc.
+  entityId      String?
+  oldValue      Json?
+  newValue      Json?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ==================== TELEGRAM BOT ====================
+model TelegramUser {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  chatId        String   @unique
+  username      String?
+  isVerified    Boolean  @default(false)
+  verifyCode    String?
+  notifyPayments Boolean @default(true)
+  notifyServers Boolean  @default(true)
+  notifyTickets Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  
+  @@map("telegram_users")
+}
+
+// ==================== DISCORD CONNECTIONS ====================
+model DiscordConnection {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  discordId     String   @unique
+  username      String
+  discriminator String?
+  avatar        String?
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@map("discord_connections")
+}
+
+// ==================== INTEGRATIONS SETTINGS (ADMIN) ====================
+model IntegrationSetting {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  value         String   @db.Text
+  isEncrypted   Boolean  @default(false)
+  description   String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  
+  @@map("integration_settings")
 }
